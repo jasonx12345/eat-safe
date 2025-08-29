@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Venues GeoJSON",
+  "type": "object",
+  "required": ["type", "features"],
+  "properties": {
+    "type": { "const": "FeatureCollection" },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": { "const": "Feature" },
+          "geometry": { "type": ["object", "null"] },
+          "properties": {
+            "type": "object",
+            "required": ["premise_id", "name", "address", "latest_result", "latest_date", "score", "bucket"],
+            "properties": {
+              "premise_id": { "type": "string" },
+              "name": { "type": "string" },
+              "address": { "type": "string" },
+              "latest_result": { "type": "string" },
+              "latest_date": { "type": "string" },
+              "score": { "type": "number" },
+              "bucket": { "type": "string" },
+              "counts_12mo": {
+                "type": "object",
+                "properties": {
+                  "closed": { "type": "integer" },
+                  "conditional": { "type": "integer" },
+                  "critical": { "type": "integer" },
+                  "noncritical": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

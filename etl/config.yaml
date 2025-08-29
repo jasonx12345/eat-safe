@@ -1,0 +1,20 @@
+source_url: "public/data/dinesafe.csv"   # file lives under your repo's public/data/
+format: "csv"
+years: 0                                  # 0 = keep all dates; set 3 to show only last 3y
+field_map:
+  # Use normalized (lowercase_with_underscores) header names
+  name: "establishment_name"
+  address: "establishment_address"
+  lat: "latitude"
+  lon: "longitude"
+  inspection_date: "inspection_date"
+  result: "outcome"
+
+  # Optional mappings (only if your CSV actually has these columns):
+  # id: "unique_id"              # if a stable premise id exists; otherwise we hash name|address
+  # critical_cnt: "infractions_critical"
+  # noncritical_cnt: "infractions_noncritical"
+  # infraction_code: "infraction_code"     # if the dataset has a code column
+  # violation: "infraction_details"
+  # action: "action"
+  # severity: "severity"
