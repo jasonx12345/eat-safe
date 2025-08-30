@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Eat Safe</title>
 
-  <!-- We'll set this href via JS so it works on GitHub Pages subpaths -->
+  <!-- we set this via JS so it works on subpaths -->
   <link rel="icon" type="image/jpeg" id="fav" href="">
   <meta name="theme-color" content="#d7263d" />
 
@@ -54,12 +54,18 @@
       z-index: 50; padding: 6px 0; box-shadow: 0 -4px 14px rgba(17,17,17,0.04);
     }
     .site-footer .wrap{ max-width:960px; margin:0 auto; padding:0 16px; }
+
+    /* status banner for live debugging */
+    .status{position:sticky;top:0;margin-bottom:10px;font-size:12px;color:#444;background:#fff7f8;border:1px solid #ffd7dd;border-radius:10px;padding:8px}
+    .status b{color:#b3001b}
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <div class="wrap">
+    <div id="status" class="status" style="display:none"></div>
+
     <header>
       <img class="logo-img" id="logo" alt="Eat Safe logo">
       <div>
@@ -84,14 +90,42 @@
   </footer>
 
   <script>
-    // Build absolute URLs relative to the current page (works on localhost and /eat-safe/ on GitHub Pages)
-    const csvUrl  = new URL("data/inspections.csv", window.location.href).toString() + "?v=" + Date.now();
+    // --- Helper: set logo+favicon paths that work on both localhost and GitHub Pages subpaths ---
     const logoUrl = new URL("icons/eat-safe-fork-solid-128.jpg", window.location.href).toString();
-
-    // Set logo + favicon paths safely for both environments
     document.getElementById("logo").src = logoUrl;
     document.getElementById("fav").href = logoUrl;
 
+    // --- Helper: show live status for debugging ---
+    const statusEl = document.getElementById("status");
+    function setStatus(msg){ statusEl.style.display="block"; statusEl.innerHTML = msg; console.log("[status]", msg.replaceAll("<b>","").replaceAll("</b>","")); }
+
+    // --- Resolve CSV URL with fallbacks (works for / and /eat-safe/) ---
+    const candidates = [
+      new URL("data/inspections.csv", window.location.href).toString(),                    // most correct relative
+      `${location.origin}/eat-safe/data/inspections.csv`,                                  // GH Pages project path (fallback)
+      `${location.origin}/data/inspections.csv`,                                           // root fallback (rare)
+    ];
+
+    async function resolveCsvUrl(){
+      for(const u of candidates){
+        try{
+          setStatus(`Trying <b>${u}</b> …`);
+          const r = await fetch(u + "?probe=" + Date.now(), { method:"HEAD", cache:"no-store" });
+          if(r.ok){
+            const len = r.headers.get("content-length");
+            setStatus(`Found CSV: <b>${u}</b> (status ${r.status}${len?`, ${len} bytes`:``})`);
+            return u + "?v=" + Date.now();
+          }else{
+            setStatus(`Got status ${r.status} for <b>${u}</b>`);
+          }
+        }catch(e){
+          setStatus(`HEAD failed for <b>${u}</b>: ${e}`);
+        }
+      }
+      throw new Error("Could not locate data/inspections.csv on this site.");
+    }
+
+    // --- App state ---
     let rows = [];
     let latestByPlace = [];
 
@@ -174,52 +208,65 @@
       });
     }
 
-    // Load CSV with Papa; add tiny diagnostics to help if something breaks on Pages
-    window.addEventListener("load", () => {
-      console.log("CSV URL:", csvUrl);
-      fetch(csvUrl, { method: "HEAD", cache: "no-store" })
-        .then(r => console.log("CSV HEAD:", r.status, r.headers.get("content-length")))
-        .catch(e => console.warn("CSV HEAD failed:", e));
+    // --- Bootstrap ---
+    (async function init(){
+      try{
+        const csvUrl = await resolveCsvUrl();
 
-      Papa.parse(csvUrl, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        worker: true,
-        complete: (res) => {
-          console.log("Papa complete; errors:", res.errors);
-          rows = res.data.map(r => ({
-            name:  r.name || r["Establishment Name"],
-            address: r.address || r["Establishment Address"],
-            inspection_date: (r.inspection_date || r["Inspection Date"] || "").toString(),
-            result: r.result || r["Outcome"],
-            violation: r.violation || r["Infraction Details"] || r["Details"] || "",
-            action: r.action || r["Action"] || r["Notice"] || "",
-            severity: r.severity || r["Severity"] || r["Severity Category"] || "",
-            code: r.code || r["Infraction Code"] || r["InfractionCode"] || r["Code"] || ""
-          })).filter(r => r.name && r.address);
+        // quick peek to surface size/status in the banner
+        try{
+          const head = await fetch(csvUrl, { method:"HEAD", cache:"no-store" });
+          setStatus(`Parsing CSV from <b>${csvUrl.split("?")[0]}</b> (status ${head.status}${head.headers.get("content-length")?`, ${head.headers.get("content-length")} bytes`:``})`);
+        }catch(e){/* ignore */ }
 
-          console.log("Loaded rows:", rows.length);
-          buildLatest();
+        Papa.parse(csvUrl, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          worker: true,
+          complete: (res) => {
+            if(res.errors?.length){
+              setStatus(`PapaParse reported <b>${res.errors.length}</b> error(s). Check console for details.`);
+              console.warn("Papa errors:", res.errors);
+            }
+            rows = res.data.map(r => ({
+              name:  r.name || r["Establishment Name"],
+              address: r.address || r["Establishment Address"],
+              inspection_date: (r.inspection_date || r["Inspection Date"] || "").toString(),
+              result: r.result || r["Outcome"],
+              violation: r.violation || r["Infraction Details"] || r["Details"] || "",
+              action: r.action || r["Action"] || r["Notice"] || "",
+              severity: r.severity || r["Severity"] || r["Severity Category"] || "",
+              code: r.code || r["Infraction Code"] || r["InfractionCode"] || r["Code"] || ""
+            })).filter(r => r.name && r.address);
 
-          const urlQ = new URL(location).searchParams.get("q") || "";
-          if(urlQ){ document.getElementById("q").value = urlQ; doSearch(urlQ); }
-          else { render([]); }
+            setStatus(`Loaded <b>${rows.length.toLocaleString()}</b> rows.`);
+            buildLatest();
+            const urlQ = new URL(location).searchParams.get("q") || "";
+            if(urlQ){ document.getElementById("q").value = urlQ; doSearch(urlQ); }
+            else { render([]); }
 
-          if (!rows.length) {
+            if (!rows.length) {
+              const e = document.getElementById("empty");
+              e.textContent = "No data loaded. Verify that data/inspections.csv is published in the Pages artifact.";
+              e.style.display = "block";
+            }
+          },
+          error: (err) => {
+            setStatus(`PapaParse error: <b>${err?.message||err}</b>`);
+            console.error("Papa error:", err);
             const e = document.getElementById("empty");
-            e.textContent = "No data loaded. Check that data/inspections.csv is published.";
+            e.textContent = "Failed to load CSV.";
             e.style.display = "block";
           }
-        },
-        error: (err) => {
-          console.error("Papa error:", err);
-          const e = document.getElementById("empty");
-          e.textContent = "Failed to load CSV: " + csvUrl;
-          e.style.display = "block";
-        }
-      });
-    });
+        });
+      }catch(e){
+        setStatus(`Could not resolve CSV URL. ${e}`);
+        const ebox = document.getElementById("empty");
+        ebox.textContent = "Can't find data/inspections.csv on this site.";
+        ebox.style.display = "block";
+      }
+    })();
 
     function doSearch(q){
       q = norm(q);
