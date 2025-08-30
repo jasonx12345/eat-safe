@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Eat Safe</title>
 
-  <link rel="icon" type="image/jpeg" href="icons/eat-safe-fork-solid-128.jpg">
+  <link rel="icon" type="image/jpeg" href="icons/eat-safe-fork-solid-128.jpg" id="fav">
   <meta name="theme-color" content="#d7263d" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,19 +14,12 @@
 
   <style>
     :root{
-      --bg:#ffffff;
-      --text:#111111;
-      --muted:#5b6470;
-      --accent:#d7263d;          /* red */
-      --card:#ffffff;
-      --border:#e9eef4;
-      --shadow:0 6px 18px rgba(17,17,17,0.05);
-      --ok:#12b981;               /* green */
-      --warn:#f59e0b;             /* amber */
-      --bad:#ef4444;              /* red for fails/closed */
+      --bg:#ffffff; --text:#111111; --muted:#5b6470; --accent:#d7263d;
+      --card:#ffffff; --border:#e9eef4; --shadow:0 6px 18px rgba(17,17,17,0.05);
+      --ok:#12b981; --warn:#f59e0b; --bad:#ef4444;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui; padding-bottom:56px}
     .wrap{max-width:960px;margin:40px auto;padding:0 16px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
     .logo-img{width:40px;height:40px;border-radius:10px;box-shadow:var(--shadow);object-fit:cover}
@@ -52,38 +45,24 @@
     .row{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
     .history{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
     .empty{color:var(--muted);margin-top:20px}
+
     /* sticky footer pinned to bottom */
     .site-footer{
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    background: var(--bg);
-    border-top: 1px solid var(--border);
-    z-index: 50;
-    padding: 6px 0;
-    box-shadow: 0 -4px 14px rgba(17,17,17,0.04);
+      position: fixed; left:0; right:0; bottom:0;
+      background: var(--bg); border-top:1px solid var(--border);
+      z-index: 50; padding: 6px 0; box-shadow: 0 -4px 14px rgba(17,17,17,0.04);
     }
-    /* use same width as main content but without the big top/bottom margins */
     .site-footer .wrap{ max-width:960px; margin:0 auto; padding:0 16px; }
-    /* prevent overlap with content */
-    body{ padding-bottom: 56px; }  /* tweak if the footer is taller */
-
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 </head>
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="credit">© <strong>2025</strong> Made by <strong>Jason Xie</strong> — Built with HTML, CSS, JavaScript (PapaParse), SQLite, and Python (pandas)</div>
-  </div>
-</footer>
-
 <body>
   <div class="wrap">
     <header>
-      <img class="logo-img" src="icons/eat-safe-fork-solid-128.jpg" alt="Eat Safe logo">
+      <img class="logo-img" id="logo" alt="Eat Safe logo">
       <div>
         <h1>Eat Safe</h1>
-        
         <p class="sub">Search by restaurant or address in Toronto. See the <strong>latest inspection</strong> and open the history with details.</p>
       </div>
     </header>
@@ -91,15 +70,30 @@
     <div class="searchbar">
       <input id="q" type="text" placeholder="Try “MOEGI SUSHI” or “123 King St”" autofocus />
       <button id="clearBtn" class="btn" title="Clear search">Clear</button>
-      
     </div>
 
     <div id="results" class="list"></div>
     <div id="empty" class="empty" style="display:none">No matches yet. Start typing above.</div>
-   
+  </div>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="credit">© <strong>2025</strong> Made by <strong>Jason Xie</strong> — Built with HTML, CSS, JavaScript (PapaParse), SQLite, and Python (pandas)</div>
+    </div>
+  </footer>
 
   <script>
-    const DATA_URL = "data/inspections.csv?v=" + Date.now();
+    // --- base-aware paths (works locally and on GitHub Pages project URL) ---
+    const PROJECT_SLUG = "eat-safe";
+    const isProjectPage = location.hostname.endsWith(".github.io") && location.pathname.split("/").includes(PROJECT_SLUG);
+    const BASE = isProjectPage ? `/${PROJECT_SLUG}/` : "/";
+
+    // fix logo + favicon paths with BASE
+    document.getElementById("fav").href = BASE + "icons/eat-safe-fork-solid-128.jpg";
+    document.getElementById("logo").src = BASE + "icons/eat-safe-fork-solid-128.jpg";
+
+    // CSV with cache-buster
+    const DATA_URL = BASE + "data/inspections.csv?v=" + Date.now();
 
     let rows = [];
     let latestByPlace = [];
@@ -111,7 +105,6 @@
       if (o.includes("fail") || o.includes("closed") || o.includes("hazard")) return "badge b-bad";
       return "badge";
     }
-
     const norm = s => (s||"").toString().toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
 
     function buildLatest(){
@@ -119,9 +112,7 @@
       for(const r of rows){
         const key = norm(r.name)+"|"+norm(r.address);
         const d = Date.parse(r.inspection_date || "");
-        if(!map.has(key) || d > map.get(key)._ts){
-          map.set(key, {...r, _ts: isNaN(d)? -Infinity : d});
-        }
+        if(!map.has(key) || d > map.get(key)._ts){ map.set(key, {...r, _ts: isNaN(d)? -Infinity : d}); }
       }
       latestByPlace = [...map.values()].sort((a,b)=>b._ts-a._ts);
     }
@@ -135,16 +126,14 @@
 
       for(const r of list.slice(0, 50)){
         const when = (r.inspection_date || "").slice(0,10);
-
-        // Build one concise detail line (shows code if present)
         const details = [];
         if (r.code)      details.push(`Code: ${r.code}`);
         if (r.violation) details.push(r.violation);
         if (r.action)    details.push(r.action);
         if (r.severity)  details.push(r.severity);
         const detail = details.join(" — ");
-
         const key = norm(r.name)+"|"+norm(r.address);
+
         el.insertAdjacentHTML("beforeend", `
           <div class="card">
             <h3>${r.name||"(unknown)"} <span class="${badgeClass(r.result)}">${r.result||"—"}</span></h3>
@@ -188,31 +177,44 @@
       });
     }
 
-    // Load CSV and normalize fields (now includes code)
-    Papa.parse(DATA_URL, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        rows = res.data.map(r => ({
-          name:  r.name || r["Establishment Name"],
-          address: r.address || r["Establishment Address"],
-          inspection_date: (r.inspection_date || r["Inspection Date"] || "").toString(),
-          result: r.result || r["Outcome"],
-          violation: r.violation || r["Infraction Details"] || r["Details"] || "",
-          action: r.action || r["Action"] || r["Notice"] || "",
-          severity: r.severity || r["Severity"] || r["Severity Category"] || "",
-          code: r.code || r["Infraction Code"] || r["InfractionCode"] || r["Code"] || ""
-        })).filter(r => r.name && r.address);
+    // Load CSV + log errors
+    window.addEventListener("load", () => {
+      Papa.parse(DATA_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
+          console.log("Papa complete; errors:", res.errors, "url:", DATA_URL);
+          rows = res.data.map(r => ({
+            name:  r.name || r["Establishment Name"],
+            address: r.address || r["Establishment Address"],
+            inspection_date: (r.inspection_date || r["Inspection Date"] || "").toString(),
+            result: r.result || r["Outcome"],
+            violation: r.violation || r["Infraction Details"] || r["Details"] || "",
+            action: r.action || r["Action"] || r["Notice"] || "",
+            severity: r.severity || r["Severity"] || r["Severity Category"] || "",
+            code: r.code || r["Infraction Code"] || r["InfractionCode"] || r["Code"] || ""
+          })).filter(r => r.name && r.address);
 
-        buildLatest();
+          console.log("Loaded rows:", rows.length);
+          buildLatest();
+          const urlQ = new URL(location).searchParams.get("q") || "";
+          if(urlQ){ document.getElementById("q").value = urlQ; doSearch(urlQ); }
+          else { render([]); }
 
-        const urlQ = new URL(location).searchParams.get("q") || "";
-        if(urlQ){ document.getElementById("q").value = urlQ; doSearch(urlQ); }
-        else { render([]); }
-
-        console.log("Loaded rows:", rows.length);
-      }
+          if (!rows.length) {
+            const e = document.getElementById("empty");
+            e.textContent = "No data loaded. Check that data/inspections.csv is published.";
+            e.style.display = "block";
+          }
+        },
+        error: (err, file, inputElem, reason) => {
+          console.error("Papa error:", err, reason);
+          const e = document.getElementById("empty");
+          e.textContent = "Failed to load CSV: " + DATA_URL;
+          e.style.display = "block";
+        }
+      });
     });
 
     function doSearch(q){
