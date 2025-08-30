@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Eat Safe</title>
 
-  <link rel="icon" type="image/jpeg" href="icons/eat-safe-fork-solid-128.jpg" id="fav">
+  <!-- We'll set this href via JS so it works on GitHub Pages subpaths -->
+  <link rel="icon" type="image/jpeg" id="fav" href="">
   <meta name="theme-color" content="#d7263d" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +20,7 @@
       --ok:#12b981; --warn:#f59e0b; --bad:#ef4444;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui; padding-bottom:56px}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui;padding-bottom:56px}
     .wrap{max-width:960px;margin:40px auto;padding:0 16px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
     .logo-img{width:40px;height:40px;border-radius:10px;box-shadow:var(--shadow);object-fit:cover}
@@ -48,14 +49,14 @@
 
     /* sticky footer pinned to bottom */
     .site-footer{
-      position: fixed; left:0; right:0; bottom:0;
-      background: var(--bg); border-top:1px solid var(--border);
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: var(--bg); border-top: 1px solid var(--border);
       z-index: 50; padding: 6px 0; box-shadow: 0 -4px 14px rgba(17,17,17,0.04);
     }
     .site-footer .wrap{ max-width:960px; margin:0 auto; padding:0 16px; }
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -83,17 +84,13 @@
   </footer>
 
   <script>
-    // --- base-aware paths (works locally and on GitHub Pages project URL) ---
-    const PROJECT_SLUG = "eat-safe";
-    const isProjectPage = location.hostname.endsWith(".github.io") && location.pathname.split("/").includes(PROJECT_SLUG);
-    const BASE = isProjectPage ? `/${PROJECT_SLUG}/` : "/";
+    // Build absolute URLs relative to the current page (works on localhost and /eat-safe/ on GitHub Pages)
+    const csvUrl  = new URL("data/inspections.csv", window.location.href).toString() + "?v=" + Date.now();
+    const logoUrl = new URL("icons/eat-safe-fork-solid-128.jpg", window.location.href).toString();
 
-    // fix logo + favicon paths with BASE
-    document.getElementById("fav").href = BASE + "icons/eat-safe-fork-solid-128.jpg";
-    document.getElementById("logo").src = BASE + "icons/eat-safe-fork-solid-128.jpg";
-
-    // CSV with cache-buster
-    const DATA_URL = BASE + "data/inspections.csv?v=" + Date.now();
+    // Set logo + favicon paths safely for both environments
+    document.getElementById("logo").src = logoUrl;
+    document.getElementById("fav").href = logoUrl;
 
     let rows = [];
     let latestByPlace = [];
@@ -177,14 +174,20 @@
       });
     }
 
-    // Load CSV + log errors
+    // Load CSV with Papa; add tiny diagnostics to help if something breaks on Pages
     window.addEventListener("load", () => {
-      Papa.parse(DATA_URL, {
+      console.log("CSV URL:", csvUrl);
+      fetch(csvUrl, { method: "HEAD", cache: "no-store" })
+        .then(r => console.log("CSV HEAD:", r.status, r.headers.get("content-length")))
+        .catch(e => console.warn("CSV HEAD failed:", e));
+
+      Papa.parse(csvUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
+        worker: true,
         complete: (res) => {
-          console.log("Papa complete; errors:", res.errors, "url:", DATA_URL);
+          console.log("Papa complete; errors:", res.errors);
           rows = res.data.map(r => ({
             name:  r.name || r["Establishment Name"],
             address: r.address || r["Establishment Address"],
@@ -198,6 +201,7 @@
 
           console.log("Loaded rows:", rows.length);
           buildLatest();
+
           const urlQ = new URL(location).searchParams.get("q") || "";
           if(urlQ){ document.getElementById("q").value = urlQ; doSearch(urlQ); }
           else { render([]); }
@@ -208,10 +212,10 @@
             e.style.display = "block";
           }
         },
-        error: (err, file, inputElem, reason) => {
-          console.error("Papa error:", err, reason);
+        error: (err) => {
+          console.error("Papa error:", err);
           const e = document.getElementById("empty");
-          e.textContent = "Failed to load CSV: " + DATA_URL;
+          e.textContent = "Failed to load CSV: " + csvUrl;
           e.style.display = "block";
         }
       });
