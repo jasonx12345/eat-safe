@@ -170,7 +170,7 @@ def main():
     col_date = get_col(df, [fm.get("inspection_date"), "inspection_date","inspectiondate","date","inspection_date_time"])
     col_res  = get_col(df, [fm.get("result"), "result","outcome","status"])
 
-    # Details columns (new: code)
+    # Details columns (
     col_violation = get_col(df, [fm.get("violation"), "infraction_details","details","violation_description","violation"])
     col_action    = get_col(df, [fm.get("action"), "action","notice"])
     col_severity  = get_col(df, [fm.get("severity"), "severity","severity_category"])

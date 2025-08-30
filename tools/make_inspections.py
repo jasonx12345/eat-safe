@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-src  = ROOT / "datasets" / "toronto_dinesafe.csv"   # adjust if your file lives elsewhere
+src  = ROOT / "datasets" / "toronto_dinesafe.csv"   
 dst  = ROOT / "public" / "data" / "inspections.csv"
 
 # Load the raw Toronto CSV
