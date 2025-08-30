@@ -52,18 +52,39 @@
     .row{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
     .history{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
     .empty{color:var(--muted);margin-top:20px}
+    /* sticky footer pinned to bottom */
+    .site-footer{
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    z-index: 50;
+    padding: 6px 0;
+    box-shadow: 0 -4px 14px rgba(17,17,17,0.04);
+    }
+    /* use same width as main content but without the big top/bottom margins */
+    .site-footer .wrap{ max-width:960px; margin:0 auto; padding:0 16px; }
+    /* prevent overlap with content */
+    body{ padding-bottom: 56px; }  /* tweak if the footer is taller */
+
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="credit">© <strong>2025</strong> Made by <strong>Jason Xie</strong> — Built with HTML, CSS, JavaScript (PapaParse), SQLite, and Python (pandas)</div>
+  </div>
+</footer>
+
 <body>
   <div class="wrap">
     <header>
       <img class="logo-img" src="icons/eat-safe-fork-solid-128.jpg" alt="Eat Safe logo">
       <div>
         <h1>Eat Safe</h1>
-        <div class="credit">© <strong>2025</strong> Made by <strong>Jason Xie</strong> — Built with HTML, CSS, JavaScript (PapaParse), SQLite, and Python (pandas)</div>
-        <p class="sub">Search by restaurant or address. See the <strong>latest inspection</strong> and open the history with details.</p>
+        
+        <p class="sub">Search by restaurant or address in Toronto. See the <strong>latest inspection</strong> and open the history with details.</p>
       </div>
     </header>
 
@@ -75,7 +96,7 @@
 
     <div id="results" class="list"></div>
     <div id="empty" class="empty" style="display:none">No matches yet. Start typing above.</div>
-  </div>
+   
 
   <script>
     const DATA_URL = "data/inspections.csv?v=" + Date.now();
